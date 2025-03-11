@@ -5,6 +5,8 @@ import GameCalendar from '@/components/games/GameCalendar';
 import GameStats from '@/components/game-stats/GameStats';
 import PlayerStats from '@/components/player-stats/PlayerStats';
 import TeamStandings from '@/components/standings/TeamStandings';
+import LiveGameStats from '@/components/live-games/LiveGameStats';
+import GameHighlights from '@/components/live-games/GameHighlights';
 
 const Index = () => {
   return (
@@ -12,6 +14,10 @@ const Index = () => {
       <NavBar />
       
       <main className="container mx-auto px-4 pb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-10">
+          <LiveGameStats />
+          <GameHighlights />
+        </div>
         <GameCalendar />
         <GameStats />
         <PlayerStats />

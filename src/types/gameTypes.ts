@@ -43,3 +43,31 @@ export interface TeamStats {
   freeThrowsMade: number;
   freeThrowsAttempted: number;
 }
+
+export interface PlayHighlight {
+  id: number;
+  gameId: number;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  timestamp: string;
+  player?: {
+    id: number;
+    name: string;
+    team: string;
+  };
+}
+
+export interface LiveGameUpdate {
+  gameId: number;
+  timestamp: string;
+  action: string;
+  description: string;
+  score: {
+    home: number;
+    away: number;
+  };
+  period: string;
+  timeRemaining: string;
+}
