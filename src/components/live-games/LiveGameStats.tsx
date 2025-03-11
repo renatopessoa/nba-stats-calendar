@@ -7,75 +7,89 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { LiveGameUpdate, Game } from '@/types/gameTypes';
-import { generateLiveUpdates } from '@/data/highlightsData';
-import { generateGames } from '@/data/gameData';
-import { generateGameStats } from '@/data/gameStatsData';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LiveGameUpdate, Game, GameStats } from '@/types/gameTypes';
+import { 
+  fetchLiveGames, 
+  fetchGameStats, 
+  fetchLiveGameUpdates 
+} from '@/services/nbaService';
 
 const LiveGameStats: React.FC = () => {
   const [liveGames, setLiveGames] = useState<Game[]>([]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [gameUpdates, setGameUpdates] = useState<LiveGameUpdate[]>([]);
+  const [gameStats, setGameStats] = useState<GameStats | null>(null);
   const [updateInterval, setUpdateInterval] = useState<NodeJS.Timeout | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
+  // Buscar jogos ao vivo quando o componente é montado
   useEffect(() => {
-    // Gerar jogos aleatórios e filtrar apenas os jogos ao vivo
-    const allGames = generateGames(new Date(), 10);
-    const onlyLiveGames = allGames.filter(game => game.status === 'live');
-    setLiveGames(onlyLiveGames);
+    const getLiveGames = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const games = await fetchLiveGames();
+        setLiveGames(games);
+        
+        if (games.length > 0) {
+          setSelectedGame(games[0]);
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Erro ao buscar jogos ao vivo:', err);
+        setError('Não foi possível carregar os jogos ao vivo. Tente novamente mais tarde.');
+        setLoading(false);
+      }
+    };
     
-    if (onlyLiveGames.length > 0) {
-      setSelectedGame(onlyLiveGames[0]);
-    }
+    getLiveGames();
+    
+    // Configurar intervalo para atualizar jogos ao vivo a cada 60 segundos
+    const gamesInterval = setInterval(() => {
+      getLiveGames();
+    }, 60000);
     
     return () => {
+      clearInterval(gamesInterval);
       if (updateInterval) {
         clearInterval(updateInterval);
       }
     };
   }, []);
   
+  // Buscar estatísticas e atualizações quando um jogo é selecionado
   useEffect(() => {
     if (selectedGame) {
-      // Gerar atualizações iniciais
-      const updates = generateLiveUpdates(selectedGame.id, 5);
-      setGameUpdates(updates);
-      
-      // Configurar atualizações em tempo real
+      // Limpar o intervalo anterior
       if (updateInterval) {
         clearInterval(updateInterval);
       }
       
+      const getGameData = async () => {
+        try {
+          // Buscar estatísticas do jogo
+          const stats = await fetchGameStats(selectedGame.id);
+          setGameStats(stats);
+          
+          // Buscar atualizações do jogo
+          const updates = await fetchLiveGameUpdates(selectedGame.id);
+          setGameUpdates(updates);
+        } catch (err) {
+          console.error('Erro ao buscar dados do jogo:', err);
+        }
+      };
+      
+      getGameData();
+      
+      // Configurar intervalo para atualizar dados a cada 15 segundos
       const interval = setInterval(() => {
-        const newUpdate = generateLiveUpdates(selectedGame.id, 1)[0];
-        setGameUpdates(prevUpdates => [newUpdate, ...prevUpdates.slice(0, 9)]);
-        
-        // Atualizar o placar do jogo selecionado
-        setSelectedGame(prevGame => {
-          if (!prevGame) return null;
-          return {
-            ...prevGame,
-            homeScore: newUpdate.score.home,
-            awayScore: newUpdate.score.away,
-            currentPeriod: `${newUpdate.period} ${newUpdate.timeRemaining}`
-          };
-        });
-        
-        // Atualizar o placar na lista de jogos ao vivo
-        setLiveGames(prevGames => {
-          return prevGames.map(game => {
-            if (game.id === selectedGame.id) {
-              return {
-                ...game,
-                homeScore: newUpdate.score.home,
-                awayScore: newUpdate.score.away,
-                currentPeriod: `${newUpdate.period} ${newUpdate.timeRemaining}`
-              };
-            }
-            return game;
-          });
-        });
-      }, 5000);
+        getGameData();
+      }, 15000);
       
       setUpdateInterval(interval);
     }
@@ -87,12 +101,79 @@ const LiveGameStats: React.FC = () => {
     };
   }, [selectedGame]);
   
-  const refreshStats = () => {
+  const refreshStats = async () => {
     if (selectedGame) {
-      const updates = generateLiveUpdates(selectedGame.id, 5);
-      setGameUpdates(updates);
+      try {
+        // Buscar estatísticas atualizadas
+        const stats = await fetchGameStats(selectedGame.id);
+        setGameStats(stats);
+        
+        // Buscar atualizações do jogo
+        const updates = await fetchLiveGameUpdates(selectedGame.id);
+        setGameUpdates(updates);
+        
+        // Buscar jogos ao vivo atualizados
+        const games = await fetchLiveGames();
+        setLiveGames(games);
+        
+        // Atualizar o jogo selecionado com os dados mais recentes
+        const updatedGame = games.find(game => game.id === selectedGame.id);
+        if (updatedGame) {
+          setSelectedGame(updatedGame);
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar estatísticas:', err);
+      }
     }
   };
+  
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Activity className="h-5 w-5 text-red-500" />
+            <span>Jogos ao Vivo</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Skeleton className="w-full h-8" />
+            <div className="space-y-3">
+              <Skeleton className="w-full h-16" />
+              <Skeleton className="w-full h-16" />
+            </div>
+            <Skeleton className="w-full h-32" />
+            <Skeleton className="w-full h-48" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Activity className="h-5 w-5 text-red-500" />
+            <span>Jogos ao Vivo</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <div className="mt-4 text-center">
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tentar novamente
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
   if (liveGames.length === 0) {
     return (
@@ -113,11 +194,10 @@ const LiveGameStats: React.FC = () => {
   
   if (!selectedGame) return null;
   
-  const gameStats = generateGameStats();
   const homeTeam = selectedGame.homeTeam;
   const awayTeam = selectedGame.awayTeam;
   
-  const homePercentage = Math.round((selectedGame.homeScore / (selectedGame.homeScore + selectedGame.awayScore)) * 100);
+  const homePercentage = Math.round((selectedGame.homeScore / (selectedGame.homeScore + selectedGame.awayScore || 1)) * 100);
   const awayPercentage = 100 - homePercentage;
   
   return (
@@ -217,42 +297,52 @@ const LiveGameStats: React.FC = () => {
             Estatísticas do Jogo
           </h3>
           
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Estatística</TableHead>
-                <TableHead className="text-right">{homeTeam.abbreviation}</TableHead>
-                <TableHead className="text-right">{awayTeam.abbreviation}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Rebotes</TableCell>
-                <TableCell className="text-right">{gameStats.homeTeam.rebounds}</TableCell>
-                <TableCell className="text-right">{gameStats.awayTeam.rebounds}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Assistências</TableCell>
-                <TableCell className="text-right">{gameStats.homeTeam.assists}</TableCell>
-                <TableCell className="text-right">{gameStats.awayTeam.assists}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Roubos</TableCell>
-                <TableCell className="text-right">{gameStats.homeTeam.steals}</TableCell>
-                <TableCell className="text-right">{gameStats.awayTeam.steals}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Bloqueios</TableCell>
-                <TableCell className="text-right">{gameStats.homeTeam.blocks}</TableCell>
-                <TableCell className="text-right">{gameStats.awayTeam.blocks}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Cestas 3P</TableCell>
-                <TableCell className="text-right">{gameStats.homeTeam.threePointsMade}/{gameStats.homeTeam.threePointsAttempted}</TableCell>
-                <TableCell className="text-right">{gameStats.awayTeam.threePointsMade}/{gameStats.awayTeam.threePointsAttempted}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {gameStats ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Estatística</TableHead>
+                  <TableHead className="text-right">{homeTeam.abbreviation}</TableHead>
+                  <TableHead className="text-right">{awayTeam.abbreviation}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Rebotes</TableCell>
+                  <TableCell className="text-right">{gameStats.homeTeam.rebounds}</TableCell>
+                  <TableCell className="text-right">{gameStats.awayTeam.rebounds}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Assistências</TableCell>
+                  <TableCell className="text-right">{gameStats.homeTeam.assists}</TableCell>
+                  <TableCell className="text-right">{gameStats.awayTeam.assists}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Roubos</TableCell>
+                  <TableCell className="text-right">{gameStats.homeTeam.steals}</TableCell>
+                  <TableCell className="text-right">{gameStats.awayTeam.steals}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Bloqueios</TableCell>
+                  <TableCell className="text-right">{gameStats.homeTeam.blocks}</TableCell>
+                  <TableCell className="text-right">{gameStats.awayTeam.blocks}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Cestas 3P</TableCell>
+                  <TableCell className="text-right">{gameStats.homeTeam.threePointsMade}/{gameStats.homeTeam.threePointsAttempted}</TableCell>
+                  <TableCell className="text-right">{gameStats.awayTeam.threePointsMade}/{gameStats.awayTeam.threePointsAttempted}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          )}
         </div>
         
         <Separator className="my-4" />
@@ -261,19 +351,27 @@ const LiveGameStats: React.FC = () => {
         <div>
           <h3 className="font-semibold mb-2">Atualizações em Tempo Real</h3>
           
-          <div className="space-y-3 max-h-60 overflow-y-auto p-1">
-            {gameUpdates.map((update, index) => (
-              <div key={index} className="border-l-2 border-primary pl-3 py-1 animate-fade-in">
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>{update.period} | {update.timeRemaining}</span>
-                  <span>{update.score.home} - {update.score.away}</span>
+          {gameUpdates.length > 0 ? (
+            <div className="space-y-3 max-h-60 overflow-y-auto p-1">
+              {gameUpdates.map((update, index) => (
+                <div key={index} className="border-l-2 border-primary pl-3 py-1 animate-fade-in">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>{update.period} | {update.timeRemaining}</span>
+                    <span>{update.score.home} - {update.score.away}</span>
+                  </div>
+                  <p className="text-sm">
+                    <span className="font-semibold">{update.action}:</span> {update.description}
+                  </p>
                 </div>
-                <p className="text-sm">
-                  <span className="font-semibold">{update.action}:</span> {update.description}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

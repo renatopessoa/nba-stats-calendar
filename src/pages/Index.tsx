@@ -7,6 +7,7 @@ import PlayerStats from '@/components/player-stats/PlayerStats';
 import TeamStandings from '@/components/standings/TeamStandings';
 import LiveGameStats from '@/components/live-games/LiveGameStats';
 import GameHighlights from '@/components/live-games/GameHighlights';
+import ApiKeySettings from '@/components/settings/ApiKeySettings';
 
 const Index = () => {
   return (
@@ -14,6 +15,10 @@ const Index = () => {
       <NavBar />
       
       <main className="container mx-auto px-4 pb-20">
+        <div className="flex justify-end mt-4">
+          <ApiKeySettings />
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-10">
           <LiveGameStats />
           <GameHighlights />

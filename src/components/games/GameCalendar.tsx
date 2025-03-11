@@ -1,27 +1,46 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, addDays, subDays } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import SectionHeader from '../layout/SectionHeader';
 import GameCard from './GameCard';
-import { generateGames } from '@/data/gameData';
+import { fetchGamesByDate } from '@/services/nbaService';
 
 const GameCalendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [games, setGames] = useState(() => generateGames(currentDate, 5));
+  const [games, setGames] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchGames(currentDate);
+  }, [currentDate]);
+
+  const fetchGames = async (date: Date) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const gamesData = await fetchGamesByDate(date);
+      setGames(gamesData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Erro ao buscar jogos:', err);
+      setError('Não foi possível carregar os jogos. Tente novamente mais tarde.');
+      setLoading(false);
+    }
+  };
 
   const nextDay = () => {
-    const newDate = addDays(currentDate, 1);
-    setCurrentDate(newDate);
-    setGames(generateGames(newDate, 5));
+    setCurrentDate(addDays(currentDate, 1));
   };
 
   const prevDay = () => {
-    const newDate = subDays(currentDate, 1);
-    setCurrentDate(newDate);
-    setGames(generateGames(newDate, 5));
+    setCurrentDate(subDays(currentDate, 1));
   };
 
   const datePickOptions = Array.from({ length: 7 }, (_, i) => {
@@ -34,12 +53,21 @@ const GameCalendar: React.FC = () => {
 
   const handleDateClick = (date: Date) => {
     setCurrentDate(date);
-    setGames(generateGames(date, 5));
+  };
+
+  const refreshGames = () => {
+    fetchGames(currentDate);
   };
 
   return (
     <section id="games" className="py-10 animate-fade-in">
-      <SectionHeader title="Calendário de Jogos" icon={Calendar} />
+      <div className="flex justify-between items-center mb-4">
+        <SectionHeader title="Calendário de Jogos" icon={Calendar} />
+        <Button variant="outline" size="sm" onClick={refreshGames} disabled={loading}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Atualizar
+        </Button>
+      </div>
       
       <div className="mb-6 flex justify-between items-center">
         <Button variant="outline" size="icon" onClick={prevDay}>
@@ -64,11 +92,27 @@ const GameCalendar: React.FC = () => {
         </Button>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {games.map((game) => (
-          <GameCard key={game.id} game={game} />
-        ))}
-      </div>
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-48 rounded-lg" />
+          ))}
+        </div>
+      ) : games.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {games.map((game) => (
+            <GameCard key={game.id} game={game} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-10">
+          <p className="text-muted-foreground">Nenhum jogo programado para esta data.</p>
+        </div>
+      )}
     </section>
   );
 };
