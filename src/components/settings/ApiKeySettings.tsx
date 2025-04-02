@@ -93,7 +93,7 @@ const ApiKeySettings: React.FC = () => {
         <div className="py-4">
           <Input
             type="password"
-            placeholder="Cole sua API Key aqui"
+            placeholder="ac407d0d28msh835a3b13e4f2039p1b948ajsn70b9c17da945"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
           />

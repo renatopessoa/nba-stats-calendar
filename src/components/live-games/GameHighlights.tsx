@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Play, Film, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,32 +18,32 @@ const GameHighlights: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('latest');
-  
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Buscar jogos ao vivo
         const liveGames = await fetchLiveGames();
         setGames(liveGames);
-        
+
         // Se houver jogos ao vivo, buscar highlights para cada um
         if (liveGames.length > 0) {
           const allHighlights: PlayHighlight[] = [];
-          
+
           // Buscar highlights para até 3 jogos (para evitar muitas requisições)
           const gamesToFetch = liveGames.slice(0, 3);
-          
+
           for (const game of gamesToFetch) {
             const gameHighlights = await fetchGameHighlights(game.id);
             allHighlights.push(...gameHighlights);
           }
-          
+
           setHighlights(allHighlights);
         }
-        
+
         setLoading(false);
       } catch (err) {
         console.error('Erro ao buscar highlights:', err);
@@ -52,39 +51,46 @@ const GameHighlights: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
     // Atualizar dados a cada 5 minutos
     const interval = setInterval(fetchData, 300000);
-    
+
     return () => clearInterval(interval);
   }, []);
-  
+
   const refreshHighlights = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Buscar jogos ao vivo atualizados
       const liveGames = await fetchLiveGames();
       setGames(liveGames);
-      
-      // Se houver jogos ao vivo, buscar highlights para cada um
-      if (liveGames.length > 0) {
-        const allHighlights: PlayHighlight[] = [];
-        
-        // Buscar highlights para até 3 jogos
-        const gamesToFetch = liveGames.slice(0, 3);
-        
-        for (const game of gamesToFetch) {
-          const gameHighlights = await fetchGameHighlights(game.id);
-          allHighlights.push(...gameHighlights);
+
+      // Buscar highlights dos jogos recentes
+      const allHighlights: PlayHighlight[] = [];
+
+      // Se não houver jogos ao vivo ou para garantir que tenhamos highlights interessantes
+      // usamos o ID de um jogo recente ou destacado para buscar highlights
+      const featuredGameId = liveGames.length > 0 ? liveGames[0].id : 123456789;
+      const gameHighlights = await fetchGameHighlights(featuredGameId);
+      allHighlights.push(...gameHighlights);
+
+      // Adicionar até 2 jogos ao vivo adicionais para mais conteúdo
+      if (liveGames.length > 1) {
+        for (let i = 1; i < Math.min(3, liveGames.length); i++) {
+          try {
+            const additionalHighlights = await fetchGameHighlights(liveGames[i].id);
+            allHighlights.push(...additionalHighlights);
+          } catch (err) {
+            console.error(`Erro ao buscar highlights adicionais para jogo ${liveGames[i].id}:`, err);
+          }
         }
-        
-        setHighlights(allHighlights);
       }
-      
+
+      setHighlights(allHighlights);
       setLoading(false);
     } catch (err) {
       console.error('Erro ao atualizar highlights:', err);
@@ -92,12 +98,12 @@ const GameHighlights: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   const handleHighlightClick = (highlight: PlayHighlight) => {
     setSelectedHighlight(highlight);
     setDialogOpen(true);
   };
-  
+
   // Função para filtrar highlights com base na aba ativa
   const getFilteredHighlights = () => {
     if (activeTab === 'latest') {
@@ -108,7 +114,7 @@ const GameHighlights: React.FC = () => {
       return highlights.length > 4 ? highlights.slice(4, 8) : highlights.slice(0, 4);
     }
   };
-  
+
   return (
     <Card className="animate-fade-in">
       <CardHeader className="pb-3">
@@ -123,15 +129,15 @@ const GameHighlights: React.FC = () => {
           </Button>
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent>
         {error ? (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <Tabs 
-            defaultValue="latest" 
+          <Tabs
+            defaultValue="latest"
             className="w-full"
             onValueChange={(value) => setActiveTab(value)}
           >
@@ -139,7 +145,7 @@ const GameHighlights: React.FC = () => {
               <TabsTrigger value="latest">Mais Recentes</TabsTrigger>
               <TabsTrigger value="top">Melhores da Semana</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="latest" className="space-y-4 animate-fade-in">
               {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -150,10 +156,10 @@ const GameHighlights: React.FC = () => {
               ) : highlights.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {getFilteredHighlights().map((highlight) => (
-                    <HighlightCard 
-                      key={highlight.id} 
-                      highlight={highlight} 
-                      onClick={() => handleHighlightClick(highlight)} 
+                    <HighlightCard
+                      key={highlight.id}
+                      highlight={highlight}
+                      onClick={() => handleHighlightClick(highlight)}
                     />
                   ))}
                 </div>
@@ -163,7 +169,7 @@ const GameHighlights: React.FC = () => {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="top" className="space-y-4 animate-fade-in">
               {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -174,10 +180,10 @@ const GameHighlights: React.FC = () => {
               ) : highlights.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {getFilteredHighlights().map((highlight) => (
-                    <HighlightCard 
-                      key={highlight.id} 
-                      highlight={highlight} 
-                      onClick={() => handleHighlightClick(highlight)} 
+                    <HighlightCard
+                      key={highlight.id}
+                      highlight={highlight}
+                      onClick={() => handleHighlightClick(highlight)}
                     />
                   ))}
                 </div>
@@ -189,7 +195,7 @@ const GameHighlights: React.FC = () => {
             </TabsContent>
           </Tabs>
         )}
-        
+
         {/* Dialog para exibir o vídeo do highlight */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-[600px]">
@@ -228,20 +234,25 @@ interface HighlightCardProps {
 
 const HighlightCard: React.FC<HighlightCardProps> = ({ highlight, onClick }) => {
   return (
-    <div 
+    <div
       className="group relative overflow-hidden rounded-lg cursor-pointer hover-scale"
       onClick={onClick}
     >
       <div className="aspect-video overflow-hidden rounded-lg">
-        <img 
-          src={highlight.thumbnailUrl} 
-          alt={highlight.title} 
+        <img
+          src={highlight.thumbnailUrl}
+          alt={highlight.title}
           className="w-full h-full object-cover transition-transform group-hover:scale-105"
         />
+        <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="rounded-full bg-primary p-3">
+            <Play className="h-6 w-6 text-white" />
+          </div>
+        </div>
       </div>
-      
+
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-3">
-        <h3 className="text-white font-semibold">{highlight.title}</h3>
+        <h3 className="text-white font-semibold line-clamp-2">{highlight.title}</h3>
         {highlight.player && (
           <div className="flex items-center mt-1">
             <Badge variant="secondary" className="text-xs">
@@ -250,21 +261,13 @@ const HighlightCard: React.FC<HighlightCardProps> = ({ highlight, onClick }) => 
           </div>
         )}
       </div>
-      
+
       <div className="absolute top-2 right-2">
         <Badge variant="destructive" className="flex items-center gap-1">
           <Play className="h-3 w-3" />
           {highlight.timestamp}
         </Badge>
       </div>
-      
-      <Button 
-        variant="default"
-        size="sm"
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <Play className="h-4 w-4 mr-1" /> Assistir
-      </Button>
     </div>
   );
 };

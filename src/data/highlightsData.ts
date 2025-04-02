@@ -51,7 +51,7 @@ export const generateHighlights = (gameId: number, count: number = 4): PlayHighl
       gameId,
       title: `${action} de ${playerName}`,
       description: `${playerName} fez uma ${action.toLowerCase()} incrível representando o ${team.name}.`,
-      videoUrl: `https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0`, // Link fictício
+      videoUrl: `https://www.youtube.com/watch?v=MhmyrUjGq9A`, // Link fictício
       thumbnailUrl: `https://picsum.photos/seed/${gameId * 100 + i}/400/225`, // Imagem aleatória
       timestamp: `Q${Math.floor(Math.random() * 4) + 1} ${Math.floor(Math.random() * 12)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
       player: {
