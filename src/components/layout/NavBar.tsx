@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ChartBar, User, List } from 'lucide-react';
+import { Calendar, ChartBar, User, List, Newspaper } from 'lucide-react';
 
 const NavBar = () => {
   const [activeTab, setActiveTab] = useState('games');
@@ -10,6 +9,7 @@ const NavBar = () => {
     { id: 'games', label: 'Jogos', icon: Calendar },
     { id: 'gameStats', label: 'Estatísticas de Jogos', icon: ChartBar },
     { id: 'playerStats', label: 'Estatísticas de Jogadores', icon: User },
+    { id: 'news', label: 'Notícias', icon: Newspaper },
     { id: 'standings', label: 'Classificação', icon: List },
   ];
 
@@ -19,11 +19,11 @@ const NavBar = () => {
         <div className="flex flex-col items-center space-y-4">
           <div className="flex items-center space-x-2">
             <img
-              src="./ball.jpg"
+              src="/images/ball.jpg"
               alt="Basketball"
               className="h-8 w-8 rounded-full object-cover"
             />
-            <h1 className="text-2xl font-bold">NBA Stats</h1>
+            <h1 className="text-2xl font-bold">Hoopverse</h1>
           </div>
 
           <nav className="flex flex-wrap justify-center gap-2">

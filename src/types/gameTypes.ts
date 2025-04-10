@@ -1,9 +1,21 @@
+export interface NewsItem {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  imageUrl: string | null;
+  published: string;
+  author: string;
+}
 
 export interface Team {
-  id: number;
+  id: number | string;
   name: string;
   abbreviation: string;
   record: string;
+  logo?: string;
+  color?: string;
+  alternateColor?: string;
 }
 
 export interface Game {

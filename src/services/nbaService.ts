@@ -1,9 +1,11 @@
-import { Game, GameStats, PlayHighlight, LiveGameUpdate, Team } from "@/types/gameTypes";
+import { Game, GameStats, PlayHighlight, LiveGameUpdate, Team, NewsItem } from "@/types/gameTypes";
+import * as espnService from './espnService';
 
 // URL base da API oficial da NBA
 const NBA_API_BASE_URL = "https://cdn.nba.com/static/json/liveData";
 const RAPID_API_BASE_URL = "https://api-nba-v1.p.rapidapi.com";
 const NBA_HIGHLIGHTS_API_BASE_URL = "https://nba-highlights-videos.p.rapidapi.com";
+const ESPN_VIDEOS_API = "http://site.api.espn.com/apis/site/v2/sports/basketball/nba/videos";
 
 // Headers necessários para acessar a RapidAPI
 const getHeaders = () => {
@@ -44,34 +46,16 @@ const mapAPITeamToTeam = (apiTeam: any): Team => {
   };
 };
 
-// Buscar todos os times da NBA
+// Buscar todos os times da NBA (agora usando a API ESPN)
 export const fetchTeams = async (): Promise<Team[]> => {
   if (teamsCache.length > 0) {
     return teamsCache;
   }
 
   try {
-    const response = await fetch(`${RAPID_API_BASE_URL}/teams?league=standard`, {
-      headers: getHeaders()
-    });
-
-    if (!response.ok) {
-      throw new Error('Falha ao buscar times');
-    }
-
-    const data = await response.json();
-
-    // Filtrar apenas times da NBA
-    const nbaTeams = data.response.filter((team: any) => team.nbaFranchise);
-
-    teamsCache = nbaTeams.map((team: any) => ({
-      id: team.id,
-      name: team.name,
-      abbreviation: team.code,
-      record: "0-0" // Será atualizado posteriormente
-    }));
-
-    return teamsCache;
+    const teams = await espnService.fetchAllTeams();
+    teamsCache = teams;
+    return teams;
   } catch (error) {
     console.error('Erro ao buscar times:', error);
     // Retornar times da simulação em caso de erro
@@ -79,7 +63,7 @@ export const fetchTeams = async (): Promise<Team[]> => {
   }
 };
 
-// Buscar jogos por data
+// Buscar jogos por data (agora usando a API ESPN)
 export const fetchGamesByDate = async (date: Date): Promise<Game[]> => {
   const dateStr = formatDateForAPI(date);
 
@@ -88,41 +72,28 @@ export const fetchGamesByDate = async (date: Date): Promise<Game[]> => {
   }
 
   try {
-    const response = await fetch(`${RAPID_API_BASE_URL}/games?date=${dateStr}`, {
-      headers: getHeaders()
-    });
+    const scoreboard = await espnService.fetchScoreboard();
 
-    if (!response.ok) {
-      throw new Error('Falha ao buscar jogos');
-    }
+    // Filtrar jogos pela data 
+    const dateToUse = new Date(date);
+    dateToUse.setHours(0, 0, 0);
+    const nextDay = new Date(dateToUse);
+    nextDay.setDate(nextDay.getDate() + 1);
 
-    const data = await response.json();
-
-    // Mapear dados da API para nosso formato interno
-    const games: Game[] = data.response.map((game: any) => {
-      const homeTeam = mapAPITeamToTeam(game.teams.home);
-      const awayTeam = mapAPITeamToTeam(game.teams.visitors);
-
-      return {
-        id: game.id,
-        date: new Date(game.date.start),
-        homeTeam,
-        awayTeam,
-        homeScore: game.scores.home.points || 0,
-        awayScore: game.scores.visitors.points || 0,
-        status: mapGameStatus(game.status.long),
-        currentPeriod: game.periods.current > 0 ? `Q${game.periods.current} ${game.status.clock || ''}` : undefined,
-        arena: game.arena.name,
-        location: `${game.arena.city}, ${game.arena.state}`
-      };
-    });
+    // Mapear e filtrar jogos por data
+    const games: Game[] = scoreboard.events
+      .filter((event: any) => {
+        const gameDate = new Date(event.date);
+        return gameDate >= dateToUse && gameDate < nextDay;
+      })
+      .map((event: any) => espnService.mapESPNGameToInternalGame(event));
 
     gamesCache[dateStr] = games;
     return games;
   } catch (error) {
     console.error('Erro ao buscar jogos:', error);
 
-    // Usar generateGames do arquivo gameData.ts em caso de erro ou limite de API
+    // Usar generateGames do arquivo gameData.ts em caso de erro
     return import('@/data/gameData').then(module => {
       const games = module.generateGames(date, 5);
       gamesCache[dateStr] = games;
@@ -131,53 +102,26 @@ export const fetchGamesByDate = async (date: Date): Promise<Game[]> => {
   }
 };
 
-// Buscar jogos ao vivo
+// Buscar jogos ao vivo (agora usando a API ESPN)
 export const fetchLiveGames = async (): Promise<Game[]> => {
   try {
-    const response = await fetch(`${NBA_API_BASE_URL}/scoreboard.json`);
+    const scoreboard = await espnService.fetchScoreboard();
 
-    if (!response.ok) {
-      throw new Error('Falha ao buscar jogos ao vivo');
-    }
-
-    const data = await response.json();
-
-    const games: Game[] = data.scoreboard.games.map((game: any) => {
-      const homeTeam: Team = {
-        id: game.homeTeam.teamId,
-        name: game.homeTeam.teamName,
-        abbreviation: game.homeTeam.teamTricode,
-        record: `${game.homeTeam.wins}-${game.homeTeam.losses}`
-      };
-
-      const awayTeam: Team = {
-        id: game.awayTeam.teamId,
-        name: game.awayTeam.teamName,
-        abbreviation: game.awayTeam.teamTricode,
-        record: `${game.awayTeam.wins}-${game.awayTeam.losses}`
-      };
-
-      return {
-        id: game.gameId,
-        date: new Date(game.gameTimeUTC),
-        homeTeam,
-        awayTeam,
-        homeScore: game.homeTeam.score,
-        awayScore: game.awayTeam.score,
-        status: game.gameStatus === 2 ? 'live' : (game.gameStatus === 3 ? 'completed' : 'scheduled'),
-        currentPeriod: game.gameStatusText,
-        arena: game.arena.arenaName,
-        location: `${game.arena.arenaCity}, ${game.arena.arenaState}`
-      };
-    });
+    // Filtrar apenas jogos ao vivo
+    const liveGames = scoreboard.events
+      .filter((event: any) => event.status.type.state === 'in')
+      .map((event: any) => espnService.mapESPNGameToInternalGame(event));
 
     // Atualizar o cache com os jogos ao vivo
     const today = formatDateForAPI(new Date());
-    if (games.length > 0) {
-      gamesCache[today] = games;
+    if (liveGames.length > 0) {
+      // Mesclar com jogos não-ao-vivo que já estão em cache
+      const existingGames = gamesCache[today] || [];
+      const notLiveGames = existingGames.filter(game => game.status !== 'live');
+      gamesCache[today] = [...liveGames, ...notLiveGames];
     }
 
-    return games.filter(game => game.status === 'live');
+    return liveGames;
   } catch (error) {
     console.error('Erro ao buscar jogos ao vivo:', error);
 
@@ -391,6 +335,16 @@ export const fetchGameHighlights = async (gameId: number): Promise<PlayHighlight
         return highlights;
       });
     }
+  }
+};
+
+// Nova função: Buscar notícias da NBA
+export const fetchNBANews = async (): Promise<NewsItem[]> => {
+  try {
+    return await espnService.fetchNews();
+  } catch (error) {
+    console.error('Erro ao buscar notícias da NBA:', error);
+    return [];
   }
 };
 
