@@ -7,7 +7,7 @@ import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "Hoopverse Stats Calendar",
+    title: "NBA Stats Calendar",
     description: "Calendário e estatísticas da NBA em tempo real",
 };
 

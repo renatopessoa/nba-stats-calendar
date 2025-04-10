@@ -23,7 +23,7 @@ const NavBar = () => {
               alt="Basketball"
               className="h-8 w-8 rounded-full object-cover"
             />
-            <h1 className="text-2xl font-bold">Hoopverse</h1>
+            <h1 className="text-2xl font-bold">NBA</h1>
           </div>
 
           <nav className="flex flex-wrap justify-center gap-2">

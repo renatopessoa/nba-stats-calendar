@@ -1,9 +1,9 @@
-import { Game, Team, GameStats, PlayHighlight, NewsItem } from "@/types/gameTypes";
+import { Game, Team, NewsItem } from "@/types/gameTypes";
 
 // URLs base das APIs ESPN
-const ESPN_SCOREBOARD_API = "http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard";
-const ESPN_NEWS_API = "http://site.api.espn.com/apis/site/v2/sports/basketball/nba/news";
-const ESPN_TEAMS_API = "http://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams";
+const ESPN_SCOREBOARD_API = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard";
+const ESPN_NEWS_API = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news";
+const ESPN_TEAMS_API = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams";
 
 // Cache para evitar requisições repetidas
 let teamsCache: Team[] = [];
